@@ -49,6 +49,7 @@ python main.py -o <organization_id> [options]
 - `--slides [LIST]`: Comma-separated list of slide numbers to generate (default: all)
 - `--debug`: Enable verbose debugging output
 - `--keep-all-slides`: Don't remove slides for missing device types
+- `--export-csv`: Export firmware compliance data to CSV files (mxmsmr_firmware_report.csv and mgmvmt_firmware_report.csv)
 
 ### Product Adoption Flags
 - `--secure-connect`: Indicate organization has Secure Connect deployed
@@ -76,6 +77,12 @@ The program generates a comprehensive PowerPoint presentation with slides includ
 8. Predictive lifecycle management
 
 The report automatically adapts to show only relevant slides based on your organization's device inventory.
+
+When using the `--export-csv` flag, the program also generates CSV files containing firmware compliance data:
+- `mxmsmr_firmware_report.csv`: Firmware data for MX, MS, and MR devices
+- `mgmvmt_firmware_report.csv`: Firmware data for MG, MV, and MT devices
+
+These CSV files include network ID, network name, firmware version, and compliance status (Good, Warning, Critical) for each network, sorted by status.
 
 ## Report Methodology
 
@@ -130,6 +137,9 @@ python main.py -o 123456 789012 -d 30
 
 # Generate only specific slides with custom output
 python main.py -o 123456 --slides 1,2,3,6 --output custom_report.pptx
+
+# Generate report and export firmware compliance data to CSV
+python main.py -o 123456 --export-csv
 ```
 
 ## Troubleshooting

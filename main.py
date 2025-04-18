@@ -98,6 +98,14 @@ try:
 except ImportError:
     print("Warning: predictive_lifecycle.py module not found.")
     PREDICTIVE_LIFECYCLE_AVAILABLE = False
+
+# Import the PSIRT advisories module
+try:
+    import psirt_advisories
+    PSIRT_ADVISORIES_AVAILABLE = True
+except ImportError:
+    print("Warning: psirt_advisories.py module not found. PSIRT Advisories slide will not be added.")
+    PSIRT_ADVISORIES_AVAILABLE = False
 # Constants
 TEMPLATE_PATH = "template.pptx"  # Path to template PPTX file, if available
 OUTPUT_PATH = "meraki_report.pptx"  # Default output path
@@ -254,7 +262,7 @@ async def main():
     parser.add_argument("--template", default=TEMPLATE_PATH,
                         help=f"Path to PowerPoint template (default: {TEMPLATE_PATH})")
     parser.add_argument("--slides", default="all",
-                        help="Comma-separated list of slide numbers to generate (default: all)")
+                        help="Comma-separated list of slide types to generate (default: all). Valid values: dashboard, mx, ms, mr, mv, mg, compliance-mxmsmr, compliance-mgmvmt, eol-summary, eol-detail, product-adoption, executive-summary, predictive-lifecycle, psirt-advisories")
     parser.add_argument("--debug", action="store_true",
                         help="Enable verbose debug output")
     parser.add_argument("--keep-all-slides", action="store_true",
@@ -271,8 +279,8 @@ async def main():
                         help="Indicate that the organization has XDR deployed")
     parser.add_argument("--no-progress-bar", action="store_true",
                         help="Disable progress bar display")
-    parser.add_argument("--export-csv", action="store_true",
-                        help="Export firmware compliance data to CSV files")
+    parser.add_argument("--no-csv-export", action="store_true",
+                        help="Disable automatic export of firmware compliance data to CSV files")
     
     args = parser.parse_args()
     
@@ -313,36 +321,74 @@ async def main():
     # if EXECUTIVE_SUMMARY_AVAILABLE:
     #     print(f"Additional: Executive Summary slide (added after all other slides, then moved to position 2)")
     
-    # Determine which slides to generate
+    # Define the mapping between slide names and their corresponding indices/identifiers
+    slide_mapping = {
+        'dashboard': 2,
+        'mx': 3,
+        'ms': 4, 
+        'mr': 5,
+        'mv': 6,
+        'mg': 7,
+        'compliance-mxmsmr': 8,
+        'compliance-mgmvmt': 9,
+        'eol-summary': 10,
+        'eol-detail': 11,
+        'psirt-advisories': 12,  # Updated - PSIRT comes after both firmware compliance slides and EOL slides
+        'product-adoption': 'product_adoption',
+        'executive-summary': 'executive_summary',
+        'predictive-lifecycle': 'predictive_lifecycle'
+    }
+    
+    # Reverse mapping for validation
+    reverse_mapping = {
+        2: 'dashboard',
+        3: 'mx',
+        4: 'ms',
+        5: 'mr',
+        6: 'mv',
+        7: 'mg',
+        8: 'compliance-mxmsmr',
+        9: 'compliance-mgmvmt',
+        10: 'eol-summary',
+        11: 'eol-detail',
+        12: 'psirt-advisories',
+        'product_adoption': 'product-adoption',
+        'executive_summary': 'executive-summary',
+        'predictive_lifecycle': 'predictive-lifecycle'
+    }
+    
+    # Determine which slides are available
     available_slides = []
     if CLIENTS_AVAILABLE:
-        available_slides.append(2)
+        available_slides.append(slide_mapping['dashboard'])
     if MX_FIRMWARE_AVAILABLE:
-        available_slides.append(3)
+        available_slides.append(slide_mapping['mx'])
     if MS_FIRMWARE_AVAILABLE:
-        available_slides.append(4)
+        available_slides.append(slide_mapping['ms'])
     if MR_FIRMWARE_AVAILABLE:
-        available_slides.append(5)
+        available_slides.append(slide_mapping['mr'])
     if MV_FIRMWARE_AVAILABLE:
-        available_slides.append(6)
+        available_slides.append(slide_mapping['mv'])
     if MG_FIRMWARE_AVAILABLE:
-        available_slides.append(7)
+        available_slides.append(slide_mapping['mg'])
     if FIRMWARE_COMPLIANCE_MXMSMR_AVAILABLE:
-        available_slides.append(8)
+        available_slides.append(slide_mapping['compliance-mxmsmr'])
     if FIRMWARE_COMPLIANCE_MGMVMT_AVAILABLE:
-        available_slides.append(9)
+        available_slides.append(slide_mapping['compliance-mgmvmt'])
     if END_OF_LIFE_AVAILABLE:
-        available_slides.append(10)
-        available_slides.append(11)
+        available_slides.append(slide_mapping['eol-summary'])
+        available_slides.append(slide_mapping['eol-detail'])
+    if PSIRT_ADVISORIES_AVAILABLE:
+        available_slides.append(slide_mapping['psirt-advisories'])  # Moved to available slides since it's now numeric (12)
         
     # Create a list for additional special slides
     special_slides = []
     if ADOPTION_AVAILABLE:
-        special_slides.append('product_adoption')
+        special_slides.append(slide_mapping['product-adoption'])
     if EXECUTIVE_SUMMARY_AVAILABLE:
-        special_slides.append('executive_summary')
-    if PREDICTIVE_LIFECYCLE_AVAILABLE:  # Added this line - always include predictive lifecycle
-        special_slides.append('predictive_lifecycle')
+        special_slides.append(slide_mapping['executive-summary'])
+    if PREDICTIVE_LIFECYCLE_AVAILABLE:
+        special_slides.append(slide_mapping['predictive-lifecycle'])
         
     if args.slides.lower() == 'all':
         slides_to_generate = available_slides + special_slides
@@ -350,13 +396,25 @@ async def main():
         try:
             requested_slides = []
             for slide in args.slides.split(','):
-                if slide.lower() in ['product_adoption', 'executive_summary']:
-                    requested_slides.append(slide.lower())
+                slide = slide.strip().lower()
+                if slide in slide_mapping:
+                    requested_slides.append(slide_mapping[slide])
                 else:
-                    requested_slides.append(int(slide))
-            slides_to_generate = requested_slides
-        except ValueError:
-            print(f"{RED}Error: Invalid slide numbers. Using all available slides.{RESET}")
+                    # Try to help with partial matches
+                    possible_matches = [name for name in slide_mapping.keys() if slide in name]
+                    if possible_matches:
+                        print(f"{YELLOW}Slide type '{slide}' not found. Did you mean one of these: {', '.join(possible_matches)}?{RESET}")
+                    else:
+                        print(f"{YELLOW}Slide type '{slide}' not recognized.{RESET}")
+            
+            # If we have valid requested slides, use them; otherwise fall back to all available slides
+            if requested_slides:
+                slides_to_generate = requested_slides
+            else:
+                print(f"{YELLOW}No valid slide types specified. Using all available slides.{RESET}")
+                slides_to_generate = available_slides + special_slides
+        except Exception as e:
+            print(f"{RED}Error parsing slide types: {e}. Using all available slides.{RESET}")
             slides_to_generate = available_slides + special_slides
     
     if not slides_to_generate:
@@ -794,7 +852,7 @@ async def main():
                         output_path,
                         output_path,
                         networks=all_networks,
-                        export_csv=args.export_csv
+                        export_csv=not args.no_csv_export
                     )
                     print(f"{GREEN}Updated Firmware Compliance MX/MS/MR slide in PowerPoint{RESET}")
                 else:
@@ -832,7 +890,7 @@ async def main():
                         output_path,
                         output_path,
                         networks=all_networks,
-                        export_csv=args.export_csv
+                        export_csv=not args.no_csv_export
                     )
                     print(f"{GREEN}Updated Firmware Compliance MG/MV/MT slide in PowerPoint{RESET}")
                 else:
@@ -926,6 +984,45 @@ async def main():
             print(f"{PURPLE}Slide 11 creation completed in {slide_time:.2f} seconds{RESET}")
         else:
             print(f"\n{YELLOW}Skipping slide 11 - No inventory device data available{RESET}")
+    
+    # Add the PSIRT Advisories slide - This has been moved to execute AFTER both firmware compliance slides
+    if 12 in slides_to_generate and PSIRT_ADVISORIES_AVAILABLE:
+        psirt_start_time = time.time()
+        print(f"\n{PURPLE}[{time.strftime('%H:%M:%S')}] Creating PSIRT Advisories slide...{RESET}")
+        
+        try:
+            # Create simple API client
+            class SimpleApiClient:
+                def __init__(self, org_ids):
+                    self.org_ids = org_ids
+                    self.dashboard = None
+            
+            api_client = SimpleApiClient(args.o)
+            
+            # Call psirt_advisories's generate function
+            if hasattr(psirt_advisories, 'generate'):
+                await psirt_advisories.generate(
+                    api_client,
+                    output_path,
+                    output_path,
+                    inventory_devices=all_inventory_devices,
+                    networks=all_networks if 'all_networks' in locals() else None
+                )
+                print(f"{GREEN}Created PSIRT Advisories slide in PowerPoint{RESET}")
+            else:
+                print(f"{RED}psirt_advisories.py doesn't have generate function{RESET}")
+        
+        except Exception as e:
+            print(f"{RED}Error creating PSIRT Advisories slide: {e}{RESET}")
+            import traceback
+            traceback.print_exc()
+        
+        psirt_time = time.time() - psirt_start_time
+        print(f"{PURPLE}PSIRT Advisories slide creation completed in {psirt_time:.2f} seconds{RESET}")
+        
+        if use_progress_bar:
+            progress_current = 35
+            print_progress_bar(progress_current, progress_total, prefix='Overall Progress:', suffix='Complete')
     
     # Create Meraki Product Adoption slide using adoption.py
     products_adoption_data = None
@@ -1192,6 +1289,7 @@ async def main():
                 progress_current = 95
                 print_progress_bar(progress_current, progress_total, prefix='Overall Progress:', suffix='Complete')
     
+        
     # Calculate total script execution time
     total_time = time.time() - start_time
     
@@ -1202,48 +1300,81 @@ async def main():
     print(f"\n{PURPLE}Total script execution time: {total_time:.2f} seconds{RESET}")
     print(f"\n{BLUE}Dashboard Report created successfully at {output_path}{RESET}")
 
-def run_individual_slide(slide_num):
+def run_individual_slide(slide_type):
     """Helper function to run a single slide generator for debugging."""
-    if slide_num == 2 and CLIENTS_AVAILABLE:
-        print(f"{YELLOW}Running clients.py directly for debugging{RESET}")
-        # Create a simple test case
-        test_orgs = ["123456"]
-        asyncio.run(clients.main_async(test_orgs, 7, TEMPLATE_PATH, OUTPUT_PATH))
-    elif slide_num == 3 and MX_FIRMWARE_AVAILABLE:
-        print(f"{YELLOW}Running mx_firmware_restrictions.py directly for debugging{RESET}")
-        # Create a simple test case
-        test_orgs = ["123456"]
-        asyncio.run(mx_firmware_restrictions.main_async(test_orgs, TEMPLATE_PATH, OUTPUT_PATH))
-
-    elif slide_num == "adoption" and ADOPTION_AVAILABLE:
-        print(f"{YELLOW}Running adoption.py directly for debugging{RESET}")
-        # Create a simple test case
-        test_orgs = ["123456"]
-        test_manual_config = {
+    # Create a mapping between slide types and their respective modules
+    debug_mapping = {
+        'dashboard': (clients, 'main_async', [["123456"], 7, TEMPLATE_PATH, OUTPUT_PATH]),
+        'mx': (mx_firmware_restrictions, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH]),
+        'ms': (ms_firmware_restrictions, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH]),
+        'mr': (mr_firmware_restrictions, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH]),
+        'mv': (mv_firmware_restrictions, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH]),
+        'mg': (mg_firmware_restrictions, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH]),
+        'compliance-mxmsmr': (firmware_compliance_mxmsmr, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH]),
+        'compliance-mgmvmt': (firmware_compliance_mgmvmt, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH]),
+        'eol-summary': (end_of_life, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH]),
+        'eol-detail': (end_of_life, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH, True]),
+        'product-adoption': (adoption, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH, {
             'Secure Connect': True,
             'Umbrella Secure Internet Gateway': False,
             'Thousand Eyes': True,
             'Spaces': False,
             'XDR': False
-        }
-        asyncio.run(adoption.main_async(test_orgs, TEMPLATE_PATH, OUTPUT_PATH, test_manual_config))
-    elif slide_num == "executive_summary" and EXECUTIVE_SUMMARY_AVAILABLE:
-        print(f"{YELLOW}Running executive_summary.py directly for debugging{RESET}")
-        test_orgs = ["123456"]
-        asyncio.run(executive_summary.main_async(test_orgs, TEMPLATE_PATH, OUTPUT_PATH))
+        }]),
+        'executive-summary': (executive_summary, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH]),
+        'predictive-lifecycle': (predictive_lifecycle, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH]),
+        'psirt-advisories': (psirt_advisories, 'main_async', [["123456"], TEMPLATE_PATH, OUTPUT_PATH])
+    }
+    
+    # Check if the slide type is in our mapping
+    if slide_type in debug_mapping:
+        module, function_name, args = debug_mapping[slide_type]
+        
+        # Check if the module is available
+        module_name = module.__name__
+        module_var_name = f"{module_name.upper()}_AVAILABLE"
+        if module_name in globals() and globals().get(module_var_name, False):
+            print(f"{YELLOW}Running {module_name}.py directly for debugging{RESET}")
+            # Call the appropriate function with the args
+            function = getattr(module, function_name)
+            asyncio.run(function(*args))
+        else:
+            print(f"{RED}Module {module_name} is not available{RESET}")
     else:
-        print(f"{RED}Invalid slide number or module not available{RESET}")
+        print(f"{RED}Invalid slide type: {slide_type}. Valid types are: {', '.join(debug_mapping.keys())}{RESET}")
 
 if __name__ == "__main__":
     # Check for special debug flags
     if len(sys.argv) > 1 and sys.argv[1] == "--debug-clients":
-        run_individual_slide(2)
+        run_individual_slide('dashboard')
     elif len(sys.argv) > 1 and sys.argv[1] == "--debug-mx":
-        run_individual_slide(3)
-    # [Other debug checks...]
+        run_individual_slide('mx')
+    elif len(sys.argv) > 1 and sys.argv[1] == "--debug-ms":
+        run_individual_slide('ms')
+    elif len(sys.argv) > 1 and sys.argv[1] == "--debug-mr":
+        run_individual_slide('mr')
+    elif len(sys.argv) > 1 and sys.argv[1] == "--debug-mv":
+        run_individual_slide('mv')
+    elif len(sys.argv) > 1 and sys.argv[1] == "--debug-mg":
+        run_individual_slide('mg')
+    elif len(sys.argv) > 1 and sys.argv[1] == "--debug-compliance-mxmsmr":
+        run_individual_slide('compliance-mxmsmr')
+    elif len(sys.argv) > 1 and sys.argv[1] == "--debug-compliance-mgmvmt":
+        run_individual_slide('compliance-mgmvmt')
+    elif len(sys.argv) > 1 and sys.argv[1] == "--debug-eol-summary":
+        run_individual_slide('eol-summary')
+    elif len(sys.argv) > 1 and sys.argv[1] == "--debug-eol-detail":
+        run_individual_slide('eol-detail')
     elif len(sys.argv) > 1 and sys.argv[1] == "--debug-adoption":
-        run_individual_slide("adoption")
+        run_individual_slide('product-adoption')
     elif len(sys.argv) > 1 and sys.argv[1] == "--debug-executive-summary":
-        run_individual_slide("executive_summary")
+        run_individual_slide('executive-summary')
+    elif len(sys.argv) > 1 and sys.argv[1] == "--debug-predictive-lifecycle":
+        run_individual_slide('predictive-lifecycle')
+    elif len(sys.argv) > 1 and sys.argv[1] == "--debug-psirt-advisories":
+        run_individual_slide('psirt-advisories')
+    # Allow direct slide type debugging
+    elif len(sys.argv) > 2 and sys.argv[1] == "--debug-slide":
+        run_individual_slide(sys.argv[2])
     else:
         asyncio.run(main())

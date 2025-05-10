@@ -1142,6 +1142,25 @@ class RhinoPriceCatalog:
         """
         # Start with our known products - FIXED URLS for problematic models
         base_products = [
+            # License URLs - Added to fix 404 errors
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-c9300-24-enterprise-license", "model": "C9300-24-ENTERPRISE-LICENSE"},
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-c9300-48-enterprise-license", "model": "C9300-48-ENTERPRISE-LICENSE"},
+            # Add alternate URL that was mentioned in the logs
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-c9300-48-advanced-license", "model": "C9300-48-ENTERPRISE-LICENSE"},
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-c9300-24-advanced-license", "model": "C9300-24-ADVANCED-LICENSE"},
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-c9300-48-advanced-license", "model": "C9300-48-ADVANCED-LICENSE"},
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-vmx-xlarge-license", "model": "VMX-XLARGE-LICENSE"},
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-vmx-medium-license-3yr", "model": "VMX-MEDIUM-LICENSE-3YR"},
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-vmx-large-license", "model": "VMX-LARGE-LICENSE"},
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-vmx-small-license", "model": "VMX-SMALL-LICENSE"},
+            {"url": "https://www.rhinonetworks.com/product/device/meraki-systems-manager-enterprise-licenses", "model": "SYSTEMS-MANAGER-ENTERPRISE-LICENSES"},
+            {"url": "https://www.rhinonetworks.com/product/device/meraki-display", "model": "DISPLAY"},
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-insight-license-xlarge", "model": "INSIGHT-LICENSE-XLARGE"},
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-insight-license-xsmall", "model": "INSIGHT-LICENSE-XSMALL"},
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-insight-license-large", "model": "INSIGHT-LICENSE-LARGE"},
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-insight-license-small", "model": "INSIGHT-LICENSE-SMALL"},
+            {"url": "https://www.rhinonetworks.com/product/license/meraki-insight-license-medium", "model": "INSIGHT-LICENSE-MEDIUM"},
+
             # MX Series
             {"url": "https://www.rhinonetworks.com/product/device/meraki-mx67", "model": "MX67"},
             {"url": "https://www.rhinonetworks.com/product/device/meraki-mx67c", "model": "MX67C"},
@@ -1690,22 +1709,36 @@ class RhinoPriceCatalog:
         """Enhanced method to extract device family from model number."""
         if not model:
             return None
-            
+
+        # Handle license models directly
+        if '-LICENSE' in model or model.endswith('-LICENSE-3YR'):
+            return 'License'
+
+        # Handle Systems Manager and special models
+        if model in ['SYSTEMS-MANAGER-ENTERPRISE-LICENSES', 'DISPLAY', 'INSIGHT-LICENSE-XLARGE',
+                     'INSIGHT-LICENSE-XSMALL', 'INSIGHT-LICENSE-LARGE', 'INSIGHT-LICENSE-SMALL',
+                     'INSIGHT-LICENSE-MEDIUM']:
+            return 'License'
+
         # Handle Catalyst CW-series APs separately
         if model.startswith('CW'):
             return 'MR'  # Treat Catalyst APs as MR equivalents
-            
+
         # Handle Catalyst C-series switches separately
         if model.startswith('C9'):
             return 'MS'  # Treat Catalyst switches as MS equivalents
-            
+
+        # Handle VMX models
+        if model.startswith('VMX-'):
+            return 'License'
+
         family_match = re.match(r'(MR|MS|MX|MV|MG|MT|Z|LIC)', model)
         if family_match:
             family = family_match.group(1)
             if family == 'LIC':
                 return 'License'
             return family
-            
+
         return None
     def manual_price_update(self, devices_to_update):
         """
@@ -1834,9 +1867,27 @@ class RhinoPriceCatalog:
         Return fallback hardcoded prices in case web scraping fails.
         """
         prices = {
+            'License': {
+                # License models that were missing (based on log)
+                'C9300-24-ENTERPRISE-LICENSE': 495,
+                'C9300-48-ENTERPRISE-LICENSE': 695,
+                'C9300-24-ADVANCED-LICENSE': 795,
+                'C9300-48-ADVANCED-LICENSE': 995,
+                'VMX-XLARGE-LICENSE': 2995,
+                'VMX-MEDIUM-LICENSE-3YR': 1995,
+                'VMX-LARGE-LICENSE': 2495,
+                'VMX-SMALL-LICENSE': 995,
+                'SYSTEMS-MANAGER-ENTERPRISE-LICENSES': 95,
+                'DISPLAY': 150,
+                'INSIGHT-LICENSE-XLARGE': 695,
+                'INSIGHT-LICENSE-XSMALL': 195,
+                'INSIGHT-LICENSE-LARGE': 495,
+                'INSIGHT-LICENSE-SMALL': 295,
+                'INSIGHT-LICENSE-MEDIUM': 395,
+            },
             'MX': {
                 # Small Branch Security Appliances
-                'MX64': 995, 'MX64W': 1095, 
+                'MX64': 995, 'MX64W': 1095,
                 'MX65': 1195, 'MX65W': 1295,
                 'MX67': 1095, 'MX67W': 1195, 'MX67C': 1295,
                 'MX68': 1295, 'MX68W': 1395, 'MX68CW': 1495,

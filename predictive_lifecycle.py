@@ -1154,7 +1154,6 @@ class RhinoPriceCatalog:
             {"url": "https://www.rhinonetworks.com/product/license/meraki-vmx-large-license", "model": "VMX-LARGE-LICENSE"},
             {"url": "https://www.rhinonetworks.com/product/license/meraki-vmx-small-license", "model": "VMX-SMALL-LICENSE"},
             {"url": "https://www.rhinonetworks.com/product/device/meraki-systems-manager-enterprise-licenses", "model": "SYSTEMS-MANAGER-ENTERPRISE-LICENSES"},
-            {"url": "https://www.rhinonetworks.com/product/device/meraki-display", "model": "DISPLAY"},
             {"url": "https://www.rhinonetworks.com/product/license/meraki-insight-license-xlarge", "model": "INSIGHT-LICENSE-XLARGE"},
             {"url": "https://www.rhinonetworks.com/product/license/meraki-insight-license-xsmall", "model": "INSIGHT-LICENSE-XSMALL"},
             {"url": "https://www.rhinonetworks.com/product/license/meraki-insight-license-large", "model": "INSIGHT-LICENSE-LARGE"},
@@ -1666,7 +1665,7 @@ class RhinoPriceCatalog:
                     
                     # If still no price found, try looking at any element with a dollar sign
                     if not price_found:
-                        dollar_elems = soup.select('*:contains("$")')
+                        dollar_elems = soup.select('*:-soup-contains("$")')
                         for elem in dollar_elems:
                             price_text = elem.text.strip()
                             price_match = re.search(r'\$([0-9,.]+)', price_text)
@@ -1715,7 +1714,7 @@ class RhinoPriceCatalog:
             return 'License'
 
         # Handle Systems Manager and special models
-        if model in ['SYSTEMS-MANAGER-ENTERPRISE-LICENSES', 'DISPLAY', 'INSIGHT-LICENSE-XLARGE',
+        if model in ['SYSTEMS-MANAGER-ENTERPRISE-LICENSES', 'INSIGHT-LICENSE-XLARGE',
                      'INSIGHT-LICENSE-XSMALL', 'INSIGHT-LICENSE-LARGE', 'INSIGHT-LICENSE-SMALL',
                      'INSIGHT-LICENSE-MEDIUM']:
             return 'License'
@@ -1878,7 +1877,6 @@ class RhinoPriceCatalog:
                 'VMX-LARGE-LICENSE': 2495,
                 'VMX-SMALL-LICENSE': 995,
                 'SYSTEMS-MANAGER-ENTERPRISE-LICENSES': 95,
-                'DISPLAY': 150,
                 'INSIGHT-LICENSE-XLARGE': 695,
                 'INSIGHT-LICENSE-XSMALL': 195,
                 'INSIGHT-LICENSE-LARGE': 495,

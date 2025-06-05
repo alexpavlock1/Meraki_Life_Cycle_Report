@@ -902,10 +902,11 @@ async def generate(api_client, template_path, output_path, inventory_devices=Non
                     # Title first
                     row.cells[0].text = advisory.get("advisoryTitle", "")
                     
-                    # Advisory ID - include date
+                    # Advisory ID - include both published and updated dates
                     advisory_id = advisory.get("advisoryId", "")
                     pub_date = format_date(advisory.get("firstPublished", ""))
-                    row.cells[1].text = f"{advisory_id}\n{pub_date}"
+                    updated_date = format_date(advisory.get("lastUpdated", ""))
+                    row.cells[1].text = f"{advisory_id}\n\nFirst Published: {pub_date}\n\nLast Updated: {updated_date}"
                     
                     # CVSS Score and SIR
                     cvss = advisory.get("cvssBaseScore", "")

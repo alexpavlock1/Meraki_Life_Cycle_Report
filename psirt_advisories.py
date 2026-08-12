@@ -48,8 +48,8 @@ async def get_api_token():
     Returns:
         API token or None if failed
     """
-    client_id = "mzcve4k4hsx5q6385quy9aza" #may need to update to get creds from user in future
-    client_secret = "mMwFv5YJMSFYjStMY2n59rPd" #may need to update to get creds from user in future
+    client_id = "" #User needs to input client id cred here
+    client_secret = "" #User needs to input client secret here
     token_url = "https://id.cisco.com/oauth2/default/v1/token"
     
     data = {
